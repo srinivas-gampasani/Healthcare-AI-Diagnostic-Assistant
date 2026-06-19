@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Healthcare AI Diagnostic Assistant — Ascension</title>
+<style>
+:root{
+  --bg:#0f1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#21262d;
+  --border:#30363d;--text:#c9d1d9;--dim:#8b949e;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;--orange:#f0883e;
+  --purple:#bc8cff;--yellow:#e3b341;--teal:#39d353;
+  --critical:#ff6b6b;--warning:#f0883e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── Top Bar ── */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:16px;z-index:100;}
+.topbar-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;}
+.logo-cross{width:32px;height:32px;background:linear-gradient(135deg,#e53935,#c62828);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.topbar-org{font-size:12px;color:var(--dim);padding-left:10px;border-left:1px solid var(--border);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid;}
+.badge-hipaa{background:rgba(63,185,80,.1);color:var(--green);border-color:rgba(63,185,80,.3);}
+.badge-live{background:rgba(88,166,255,.1);color:var(--blue);border-color:rgba(88,166,255,.3);}
+.user-chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;}
+
+/* ── Layout ── */
+.layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:240px;min-width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.right-panel{width:320px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+
+/* ── Sidebar ── */
+.sidebar-section{padding:14px;border-bottom:1px solid var(--border);}
+.sidebar-label{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px;transition:background .15s;color:var(--dim);}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:rgba(88,166,255,.1);color:var(--blue);}
+
+/* Patient list */
+.pt-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:all .15s;}
+.pt-card:hover{border-color:var(--blue);}
+.pt-card.active{border-color:var(--blue);background:rgba(88,166,255,.05);}
+.pt-name{font-size:13px;font-weight:600;}
+.pt-meta{font-size:11px;color:var(--dim);margin-top:2px;}
+.pt-badges{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;}
+.pt-badge{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;}
+.pt-crit{background:rgba(248,81,73,.15);color:var(--red);}
+.pt-warn{background:rgba(240,136,62,.15);color:var(--orange);}
+.pt-ok{background:rgba(63,185,80,.1);color:var(--green);}
+
+/* ── Main content ── */
+.content-area{flex:1;overflow-y:auto;padding:20px;}
+.tab-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;}
+.tab{padding:10px 16px;font-size:13px;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.tab:hover:not(.active){color:var(--text);}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden;}
+.card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.card-title{font-size:14px;font-weight:600;}
+.card-body{padding:16px;}
+
+/* Alert banner */
+.alert-banner{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.4);border-radius:8px;padding:12px 16px;margin-bottom:12px;}
+.alert-banner.warning{background:rgba(240,136,62,.1);border-color:rgba(240,136,62,.4);}
+.alert-title{font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px;}
+.alert-banner.warning .alert-title{color:var(--orange);}
+.alert-item{font-size:12px;color:var(--text);padding:2px 0;}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
+.metric{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+.metric-val{font-size:20px;font-weight:700;}
+.metric-lbl{font-size:10px;color:var(--dim);margin-top:2px;}
+
+/* Lab table */
+.lab-table{width:100%;border-collapse:collapse;font-size:12px;}
+.lab-table th{padding:6px 10px;text-align:left;color:var(--dim);font-weight:600;border-bottom:1px solid var(--border);background:var(--bg3);}
+.lab-table td{padding:7px 10px;border-bottom:1px solid var(--border);}
+.lab-table tr:last-child td{border-bottom:none;}
+.val-crit{color:var(--red);font-weight:700;}
+.val-high{color:var(--orange);font-weight:600;}
+.val-low{color:var(--blue);}
+.val-normal{color:var(--green);}
+.interp-chip{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;}
+.ch-crit{background:rgba(248,81,73,.2);color:var(--red);}
+.ch-high{background:rgba(240,136,62,.15);color:var(--orange);}
+.ch-low{background:rgba(88,166,255,.1);color:var(--blue);}
+.ch-normal{background:rgba(63,185,80,.1);color:var(--green);}
+
+/* Condition / Med pills */
+.pill-list{display:flex;flex-wrap:wrap;gap:6px;}
+.pill{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid;background:var(--bg3);}
+.pill-condition{border-color:rgba(188,140,255,.4);color:var(--purple);}
+.pill-med{border-color:rgba(63,185,80,.3);color:var(--green);}
+.pill-allergy{border-color:rgba(248,81,73,.4);color:var(--red);}
+
+/* ── Chat area ── */
+.chat-container{display:flex;flex-direction:column;height:100%;}
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;}
+.msg-user{align-self:flex-end;max-width:70%;}
+.msg-ai{align-self:flex-start;max-width:85%;}
+.msg-bubble{padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.7;}
+.msg-user .msg-bubble{background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);}
+.msg-ai .msg-bubble{background:var(--bg2);border:1px solid var(--border);}
+.msg-meta{font-size:10px;color:var(--dim);margin-top:3px;text-align:right;}
+.msg-user .msg-meta{text-align:right;}
+.msg-ai .msg-meta{text-align:left;}
+
+.chat-input-area{padding:14px 20px;border-top:1px solid var(--border);background:var(--bg2);}
+.chat-row{display:flex;gap:8px;}
+.chat-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;resize:none;min-height:42px;max-height:120px;transition:border-color .2s;}
+.chat-input:focus{border-color:var(--blue);}
+.chat-send{background:var(--blue);color:#0d1117;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;align-self:flex-end;}
+.chat-send:hover{background:#79c0ff;}
+.chat-send:disabled{background:var(--bg3);color:var(--dim);cursor:not-allowed;}
+
+.quick-prompts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.qp{font-size:11px;padding:3px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all .15s;color:var(--dim);}
+.qp:hover{border-color:var(--blue);color:var(--blue);}
+
+/* ── Right panel (alerts + sources) ── */
+.rp-section{padding:14px;border-bottom:1px solid var(--border);}
+.rp-title{font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+.alert-row{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.alert-row:last-child{border-bottom:none;}
+.alert-icon{font-size:14px;margin-top:1px;flex-shrink:0;}
+
+/* Source chip */
+.source-chip{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:6px;font-size:11px;}
+.source-name{color:var(--blue);font-weight:600;}
+.source-cat{color:var(--dim);}
+
+/* Login overlay */
+.login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px;width:360px;}
+.login-logo{text-align:center;margin-bottom:24px;}
+.login-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+.login-sub{font-size:12px;color:var(--dim);}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:12px;color:var(--dim);margin-bottom:5px;display:block;}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--blue);}
+.login-btn{width:100%;background:var(--blue);color:#0d1117;border:none;border-radius:8px;padding:11px;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;transition:all .2s;}
+.login-btn:hover{background:#79c0ff;}
+.demo-creds{background:var(--bg3);border-radius:7px;padding:10px;margin-top:14px;font-size:11px;color:var(--dim);}
+.demo-creds strong{color:var(--text);}
+
+/* Markdown rendering in chat */
+.md-content h1,.md-content h2,.md-content h3{margin:10px 0 5px;color:var(--text);}
+.md-content h2{font-size:14px;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.md-content h3{font-size:13px;color:var(--blue);}
+.md-content p{margin:5px 0;line-height:1.7;}
+.md-content ul,.md-content ol{margin:5px 0 5px 18px;}
+.md-content li{margin:3px 0;line-height:1.6;}
+.md-content code{background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--orange);}
+.md-content strong{color:var(--text);}
+.md-content em{color:var(--dim);}
+.crit-text{color:var(--red);font-weight:700;}
+
+/* Note view */
+.note-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word;}
+.ai-draft-banner{background:rgba(227,179,65,.1);border:1px solid rgba(227,179,65,.4);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--yellow);}
+
+/* Spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div style="font-size:32px;margin-bottom:8px">🏥</div>
+      <div class="login-title">Healthcare AI Assistant</div>
+      <div class="login-sub">Ascension Via Christi Health · HIPAA Compliant</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="login-user" type="text" placeholder="dr.roberts" value="dr.roberts"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="login-pass" type="password" placeholder="••••••••" value="Demo1234!"/>
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In Securely</button>
+    <div class="demo-creds">
+      <strong>Demo accounts:</strong><br>
+      Physician: <code>dr.roberts</code> / <code>Demo1234!</code><br>
+      Nurse: <code>nurse.johnson</code> / <code>Demo1234!</code>
+    </div>
+  </div>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-cross">✚</div>
+    Healthcare AI Diagnostic Assistant
+  </div>
+  <div class="topbar-org">Ascension Via Christi Health</div>
+  <div class="topbar-right">
+    <span class="badge badge-hipaa">✓ HIPAA</span>
+    <span class="badge badge-live">● LIVE</span>
+    <div class="user-chip" id="user-chip">
+      <span>👤</span><span id="user-name">Loading...</span>
+    </div>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Navigation</div>
+    <div class="nav-item active" onclick="showView('patients')">👥 Patients</div>
+    <div class="nav-item" onclick="showView('ai')">🤖 AI Assistant</div>
+    <div class="nav-item" onclick="showView('audit')">🔒 Audit Log</div>
+  </div>
+  <div class="sidebar-section" style="flex:1">
+    <div class="sidebar-label">Patient Panel</div>
+    <div id="patient-list"></div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="tab-bar" id="tab-bar">
+    <div class="tab active" onclick="showTab('overview')">📋 Overview</div>
+    <div class="tab" onclick="showTab('labs')">🧪 Labs & Vitals</div>
+    <div class="tab" onclick="showTab('meds')">💊 Medications</div>
+    <div class="tab" onclick="showTab('notes')">📝 Notes</div>
+    <div class="tab" onclick="showTab('chat')">🤖 AI Chat</div>
+  </div>
+
+  <div class="content-area" id="content-area">
+    <div id="view-patients" style="display:none">
+      <div style="color:var(--dim);font-size:14px;padding:40px;text-align:center">Select a patient from the panel to view their clinical dashboard.</div>
+    </div>
+
+    <!-- Overview Tab -->
+    <div id="tab-overview">
+      <div id="overview-empty" style="color:var(--dim);padding:40px;text-align:center">Select a patient to view clinical overview.</div>
+      <div id="overview-content" style="display:none">
+        <div id="critical-alerts-area"></div>
+        <div class="metrics" id="overview-metrics"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="card">
+            <div class="card-hdr">🩺 <span class="card-title">Active Diagnoses</span></div>
+            <div class="card-body"><div class="pill-list" id="conditions-list"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-hdr">⚕️ <span class="card-title">Patient Info</span></div>
+            <div class="card-body" id="pt-info-box"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">⚠️ <span class="card-title">Allergies</span></div>
+          <div class="card-body"><div class="pill-list" id="allergy-list"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Labs Tab -->
+    <div id="tab-labs" style="display:none">
+      <div class="card">
+        <div class="card-hdr">🧪 <span class="card-title">Lab Results & Vital Signs</span></div>
+        <div class="card-body" style="padding:0">
+          <table class="lab-table">
+            <thead><tr><th>Test</th><th>Value</th><th>Unit</th><th>Interpretation</th><th>Date</th><th>Category</th></tr></thead>
+            <tbody id="lab-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meds Tab -->
+    <div id="tab-meds" style="display:none">
+      <div class="card">
+        <div class="card-hdr">💊 <span class="card-title">Active Medications</span></div>
+        <div class="card-body"><div class="pill-list" id="meds-list"></div></div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-hdr" id="meds-detail-hdr">💊 <span class="card-title">Medication Details</span></div>
+        <div class="card-body" id="meds-detail-body"></div>
+      </div>
+    </div>
+
+    <!-- Notes Tab -->
+    <div id="tab-notes" style="display:none">
+      <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center">
+        <span style="font-size:14px;font-weight:600">Clinical Notes</span>
+        <button onclick="generateNote()" id="gen-note-btn" style="margin-left:auto;background:var(--blue);color:#0d1117;border:none;border-radius:7px;padding:7px 16px;font-weight:700;cursor:pointer;font-size:13px;">✨ Generate AI Draft Note</button>
+      </div>
+      <div id="ai-note-area" style="display:none">
+        <div class="ai-draft-banner">⚠️ [AI-DRAFT] This note was generated by AI and requires physician review and attestation before finalizing.</div>
+        <div class="note-box" id="ai-note-content"></div>
+      </div>
+      <div id="notes-list"></div>
+    </div>
+
+    <!-- Chat Tab -->
+    <div id="tab-chat" style="display:none;height:100%;flex-direction:column;display:flex">
+      <div class="chat-container" style="height:calc(100vh - 200px)">
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg-ai">
+            <div class="msg-bubble md-content">
+              <strong>👋 Hello, I'm your Clinical AI Assistant.</strong><br><br>
+              I have access to your patients' EHR data, lab results, medications, and clinical notes. I'm grounded in evidence-based guidelines (ADA, ACC/AHA, KDIGO).<br><br>
+              Select a patient from the sidebar, then ask me anything clinical. Examples:<br>
+              • "What is the current HbA1c and what does the ADA recommend?"<br>
+              • "Summarize this patient's renal function and flag any drug concerns"<br>
+              • "What medications should be adjusted given the current labs?"<br><br>
+              <em>All responses are AI-assisted and require clinical judgment.</em>
+            </div>
+            <div class="msg-meta">Healthcare AI v1.0 · HIPAA compliant</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <div class="chat-row">
+            <textarea class="chat-input" id="chat-input" placeholder="Ask a clinical question..." rows="1" onkeydown="handleKey(event)"></textarea>
+            <button class="chat-send" id="chat-send" onclick="sendMessage()">Send ➤</button>
+          </div>
+          <div class="quick-prompts">
+            <span class="qp" onclick="setQ(this)">Summarize patient history</span>
+            <span class="qp" onclick="setQ(this)">Review abnormal lab values</span>
+            <span class="qp" onclick="setQ(this)">Drug interaction check</span>
+            <span class="qp" onclick="setQ(this)">What does the guideline recommend for this HbA1c?</span>
+            <span class="qp" onclick="setQ(this)">Assess renal function and medication safety</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Tab -->
+    <div id="tab-audit" style="display:none">
+      <div class="card">
+        <div class="card-hdr">🔒 <span class="card-title">HIPAA Audit Log</span></div>
+        <div class="card-body" id="audit-content" style="font-size:12px;font-family:monospace;color:var(--dim)">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Right Panel -->
+<div class="right-panel">
+  <div class="rp-section">
+    <div class="rp-title">⚠️ Active Alerts</div>
+    <div id="rp-alerts"><div style="color:var(--dim);font-size:12px">Select a patient to view alerts</div></div>
+  </div>
+  <div class="rp-section">
+    <div class="rp-title">📚 Clinical Guidelines</div>
+    <div id="rp-guidelines">
+      <div class="source-chip"><div class="source-name">ADA Standards of Care 2024</div><div class="source-cat">Diabetes Management</div></div>
+      <div class="source-chip"><div class="source-name">ACC/AHA HTN Guideline 2017</div><div class="source-cat">Hypertension</div></div>
+      <div class="source-chip"><div class="source-name">KDIGO CKD Guideline 2022</div><div class="source-cat">Nephrology</div></div>
+      <div class="source-chip"><div class="source-name">AHA/ACC HF Guideline 2022</div><div class="source-cat">Cardiology</div></div>
+      <div class="source-chip"><div class="source-name">GINA Asthma 2023</div><div class="source-cat">Pulmonology</div></div>
+    </div>
+  </div>
+  <div class="rp-section">
+    <div class="rp-title">🔢 System Stats</div>
+    <div style="font-size:12px;color:var(--dim)">
+      <div style="padding:4px 0;display:flex;justify-content:space-between"><span>Patients loaded</span><span style="color:var(--text)">5</span></div>
+      <div style="padding:4px 0;display:flex;justify-content:space-between"><span>Guidelines indexed</span><span style="color:var(--text)">7</span></div>
+      <div style="padding:4px 0;display:flex;justify-content:space-between"><span>HIPAA mode</span><span style="color:var(--green)">Active</span></div>
+      <div style="padding:4px 0;display:flex;justify-content:space-between"><span>RAG Engine</span><span style="color:var(--green)">Ready</span></div>
+      <div style="padding:4px 0;display:flex;justify-content:space-between"><span>Uptime SLA</span><span style="color:var(--green)">99.9%</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let authToken = null;
+let currentUser = null;
+let currentPatient = null;
+let patientData = {};
+let chatHistory = [];
+let activeTab = 'overview';
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+
+  try {
+    const fd = new FormData();
+    fd.append('username', username);
+    fd.append('password', password);
+    const res = await fetch(`${API}/auth/token`, {method:'POST', body: fd});
+    if (!res.ok) { alert('Invalid credentials. Try dr.roberts / Demo1234!'); return; }
+    const data = await res.json();
+    authToken = data.access_token;
+    currentUser = data.user;
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('user-name').textContent = `${currentUser.full_name} (${currentUser.role})`;
+    await loadPatients();
+  } catch(e) {
+    // Demo mode (no backend)
+    authToken = 'demo-token';
+    currentUser = {full_name: 'Dr. Emily Roberts', role: 'physician', username: 'dr.roberts'};
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('user-name').textContent = `${currentUser.full_name} (demo)`;
+    loadDemoPatients();
+  }
+}
+
+function authHeaders() {
+  return {Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json'};
+}
+
+// ── Patient Loading ───────────────────────────────────────────────────────────
+const DEMO_PATIENTS = [
+  {id:'PT001',mrn:'MRN-100001',name:'James Carter',age:66,gender:'male',primary_physician:'Dr. Emily Roberts',active_conditions:3,active_medications:3,critical_alerts:0},
+  {id:'PT002',mrn:'MRN-100002',name:'Maria Gonzalez',age:52,gender:'female',primary_physician:'Dr. David Kim',active_conditions:2,active_medications:3,critical_alerts:1},
+  {id:'PT003',mrn:'MRN-100003',name:'Robert Thompson',age:79,gender:'male',primary_physician:'Dr. Emily Roberts',active_conditions:3,active_medications:3,critical_alerts:2},
+  {id:'PT004',mrn:'MRN-100004',name:'Sarah Williams',age:39,gender:'female',primary_physician:'Dr. Michael Chen',active_conditions:2,active_medications:1,critical_alerts:0},
+  {id:'PT005',mrn:'MRN-100005',name:'David Patel',age:61,gender:'male',primary_physician:'Dr. Lisa Chang',active_conditions:3,active_medications:3,critical_alerts:3},
+];
+
+async function loadPatients() {
+  try {
+    const res = await fetch(`${API}/patients`, {headers: authHeaders()});
+    const pts = await res.json();
+    renderPatientList(pts);
+  } catch(e) { loadDemoPatients(); }
+}
+
+function loadDemoPatients() { renderPatientList(DEMO_PATIENTS); }
+
+function renderPatientList(patients) {
+  const el = document.getElementById('patient-list');
+  el.innerHTML = patients.map(p => `
+    <div class="pt-card" id="ptcard-${p.id}" onclick="selectPatient('${p.id}')">
+      <div class="pt-name">${p.name}</div>
+      <div class="pt-meta">Age ${p.age} · ${p.gender} · ${p.mrn}</div>
+      <div class="pt-badges">
+        ${p.critical_alerts > 0 ? `<span class="pt-badge pt-crit">⚠️ ${p.critical_alerts} Critical</span>` : ''}
+        <span class="pt-badge pt-ok">${p.active_conditions} Dx</span>
+        <span class="pt-badge" style="background:rgba(188,140,255,.1);color:var(--purple)">${p.active_medications} Meds</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Patient Selection ─────────────────────────────────────────────────────────
+async function selectPatient(id) {
+  document.querySelectorAll('.pt-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`ptcard-${id}`)?.classList.add('active');
+  currentPatient = id;
+
+  try {
+    const [ptRes, alertRes] = await Promise.all([
+      fetch(`${API}/patients/${id}`, {headers: authHeaders()}),
+      fetch(`${API}/patients/${id}/alerts`, {headers: authHeaders()}),
+    ]);
+    const ptData = await ptRes.json();
+    const alertData = await alertRes.json();
+    renderPatientDashboard(id, ptData, alertData);
+  } catch(e) {
+    renderDemoPatient(id);
+  }
+}
+
+const DEMO_DATA = {
+  PT001: {
+    fhir: {name:[{family:'Carter',given:['James']}], birthDate:'1958-03-14', gender:'male'},
+    conditions:[{code:'E11.9',display:'Type 2 Diabetes Mellitus',status:'active',onset:'2015-03-10'},{code:'I10',display:'Essential Hypertension',status:'active',onset:'2012-06-15'},{code:'E78.5',display:'Hyperlipidemia',status:'active',onset:'2015-03-10'}],
+    medications:[{name:'Metformin',dosage:'1000mg',frequency:'twice daily',route:'oral',indication:'T2DM'},{name:'Lisinopril',dosage:'10mg',frequency:'once daily',route:'oral',indication:'Hypertension'},{name:'Atorvastatin',dosage:'40mg',frequency:'nightly',route:'oral',indication:'Hyperlipidemia'}],
+    recent_observations:[{display:'HbA1c',value:7.8,unit:'%',interpretation:'high',date:'2024-10-15'},{display:'BP Systolic',value:142,unit:'mmHg',interpretation:'high',date:'2024-10-15'},{display:'Cholesterol',value:215,unit:'mg/dL',interpretation:'high',date:'2024-10-15'},{display:'Body Weight',value:92,unit:'kg',interpretation:'normal',date:'2024-10-15'}],
+    allergies:['Penicillin','Sulfa drugs'], blood_type:'O+'
+  },
+  PT003: {
+    fhir:{name:[{family:'Thompson',given:['Robert']}],birthDate:'1945-11-05',gender:'male'},
+    conditions:[{code:'I50.9',display:'Heart Failure',status:'active',onset:'2020-05-12'},{code:'N18.3',display:'CKD Stage 3',status:'active',onset:'2018-11-30'},{code:'I10',display:'Hypertension',status:'active',onset:'2005-02-14'}],
+    medications:[{name:'Furosemide',dosage:'40mg',frequency:'twice daily',route:'oral',indication:'Heart Failure'},{name:'Carvedilol',dosage:'12.5mg',frequency:'twice daily',route:'oral',indication:'Heart Failure'},{name:'Losartan',dosage:'50mg',frequency:'once daily',route:'oral',indication:'HTN/CKD'}],
+    recent_observations:[{display:'Creatinine',value:2.8,unit:'mg/dL',interpretation:'critical-high',date:'2024-10-28'},{display:'Potassium',value:5.6,unit:'mEq/L',interpretation:'critical-high',date:'2024-10-28'},{display:'eGFR',value:28,unit:'mL/min',interpretation:'low',date:'2024-10-28'},{display:'BP Systolic',value:158,unit:'mmHg',interpretation:'high',date:'2024-10-28'}],
+    allergies:['Codeine'], blood_type:'B+'
+  },
+  PT005: {
+    fhir:{name:[{family:'Patel',given:['David']}],birthDate:'1963-09-17',gender:'male'},
+    conditions:[{code:'E11.65',display:'T2DM with Hyperglycemia',status:'active',onset:'2010-07-22'},{code:'N18.4',display:'CKD Stage 4',status:'active',onset:'2022-01-08'},{code:'I25.10',display:'Coronary Artery Disease',status:'active',onset:'2019-03-15'}],
+    medications:[{name:'Insulin Glargine',dosage:'20 units',frequency:'nightly',route:'subcutaneous',indication:'T2DM'},{name:'Amlodipine',dosage:'10mg',frequency:'once daily',route:'oral',indication:'CAD/HTN'},{name:'Sevelamer',dosage:'800mg',frequency:'TID',route:'oral',indication:'CKD'}],
+    recent_observations:[{display:'HbA1c',value:9.2,unit:'%',interpretation:'critical-high',date:'2024-11-10'},{display:'Creatinine',value:3.6,unit:'mg/dL',interpretation:'critical-high',date:'2024-11-10'},{display:'eGFR',value:16,unit:'mL/min',interpretation:'critical-low',date:'2024-11-10'},{display:'Potassium',value:6.1,unit:'mEq/L',interpretation:'critical-high',date:'2024-11-10'}],
+    allergies:['NSAIDs','Contrast dye'], blood_type:'O-'
+  },
+};
+
+const DEMO_ALERTS = {
+  PT001:{critical_alerts:[],abnormal_values:[{display:'HbA1c',value:7.8,unit:'%',interpretation:'high',date:'2024-10-15'},{display:'BP Systolic',value:142,unit:'mmHg',interpretation:'high',date:'2024-10-15'}]},
+  PT002:{critical_alerts:['⚠️ CRITICAL: SpO2 = 94% — below 95% threshold'],abnormal_values:[]},
+  PT003:{critical_alerts:['🔴 CRITICAL: Creatinine = 2.8 mg/dL','🔴 CRITICAL: Potassium = 5.6 mEq/L — arrhythmia risk','⚠️ DRUG ALERT: Losartan in AKI + hyperkalemia — consider holding'],abnormal_values:[]},
+  PT004:{critical_alerts:[],abnormal_values:[{display:'Hemoglobin',value:10.8,unit:'g/dL',interpretation:'low',date:'2024-09-20'}]},
+  PT005:{critical_alerts:['🔴 CRITICAL: HbA1c = 9.2% — severely uncontrolled','🔴 CRITICAL: Creatinine = 3.6 mg/dL — approaching ESRD','🔴 CRITICAL: Potassium = 6.1 mEq/L — LIFE THREATENING','🔴 CRITICAL: eGFR = 16 mL/min — imminent dialysis','⚠️ DRUG ALERT: Metformin in CKD Stage 4 — verify/stop'],abnormal_values:[]},
+};
+
+function renderDemoPatient(id) {
+  const data = DEMO_DATA[id] || DEMO_DATA['PT001'];
+  const alerts = DEMO_ALERTS[id] || {critical_alerts:[],abnormal_values:[]};
+  renderPatientDashboard(id, data, alerts);
+}
+
+function renderPatientDashboard(id, data, alertData) {
+  patientData[id] = {data, alertData};
+  document.getElementById('overview-empty').style.display = 'none';
+  document.getElementById('overview-content').style.display = '';
+
+  const pt = data.fhir;
+  const name = `${pt.name[0].given[0]} ${pt.name[0].family}`;
+
+  // Critical alerts area
+  const alertEl = document.getElementById('critical-alerts-area');
+  if (alertData.critical_alerts?.length) {
+    alertEl.innerHTML = `<div class="alert-banner"><div class="alert-title">⚠️ ACTIVE CRITICAL ALERTS (${alertData.critical_alerts.length})</div>${alertData.critical_alerts.map(a=>`<div class="alert-item">${a}</div>`).join('')}</div>`;
+  } else {
+    alertEl.innerHTML = '<div class="alert-banner warning"><div class="alert-title" style="color:var(--orange)">⚠️ No Critical Alerts</div><div class="alert-item">Review any abnormal values in Labs tab</div></div>';
+  }
+
+  // Metrics
+  const abCount = (alertData.abnormal_values||[]).length + alertData.critical_alerts.length;
+  document.getElementById('overview-metrics').innerHTML = [
+    {v: data.conditions?.length||0, l:'Conditions', c:'var(--purple)'},
+    {v: data.medications?.length||0, l:'Medications', c:'var(--green)'},
+    {v: data.recent_observations?.length||0, l:'Lab Results', c:'var(--blue)'},
+    {v: abCount, l:'Alerts', c: abCount>0?'var(--red)':'var(--green)'},
+  ].map(m=>`<div class="metric"><div class="metric-val" style="color:${m.c}">${m.v}</div><div class="metric-lbl">${m.l}</div></div>`).join('');
+
+  // Conditions
+  document.getElementById('conditions-list').innerHTML = (data.conditions||[]).map(c=>`<span class="pill pill-condition">${c.display} <em style="font-size:9px">${c.code}</em></span>`).join('');
+
+  // Patient info
+  const allergies = data.allergies || data.data?.allergies || [];
+  document.getElementById('pt-info-box').innerHTML = `
+    <div style="font-size:12px;line-height:2">
+      <div><span style="color:var(--dim)">DOB:</span> ${pt.birthDate}</div>
+      <div><span style="color:var(--dim)">Gender:</span> ${pt.gender}</div>
+      <div><span style="color:var(--dim)">Blood Type:</span> ${data.blood_type||'N/A'}</div>
+      <div><span style="color:var(--dim)">MRN:</span> ${data.fhir?.identifier?.[0]?.value||id}</div>
+    </div>`;
+
+  document.getElementById('allergy-list').innerHTML = (allergies.length?allergies:['NKDA']).map(a=>`<span class="pill ${allergies.length?'pill-allergy':''}">${a}</span>`).join('');
+
+  // Labs
+  document.getElementById('lab-table-body').innerHTML = (data.recent_observations||[]).map(o=>{
+    const ic = o.interpretation.includes('critical')?'ch-crit':o.interpretation==='high'?'ch-high':o.interpretation==='low'?'ch-low':'ch-normal';
+    const vc = o.interpretation.includes('critical')?'val-crit':o.interpretation==='high'?'val-high':o.interpretation==='low'?'val-low':'val-normal';
+    return `<tr><td>${o.display}</td><td class="${vc}">${o.value}</td><td>${o.unit}</td><td><span class="interp-chip ${ic}">${o.interpretation}</span></td><td>${o.date}</td><td style="color:var(--dim)">lab</td></tr>`;
+  }).join('');
+
+  // Medications
+  const medsListEl = document.getElementById('meds-list');
+  const medsDetailEl = document.getElementById('meds-detail-body');
+  medsListEl.innerHTML = (data.medications||[]).map(m=>`<span class="pill pill-med">💊 ${m.name}</span>`).join('');
+  medsDetailEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">${(data.medications||[]).map(m=>`
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:10px;font-size:12px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:5px">💊 ${m.name}</div>
+      <div style="color:var(--dim)">Dose: <span style="color:var(--text)">${m.dosage} ${m.frequency} [${m.route}]</span></div>
+      <div style="color:var(--dim)">For: <span style="color:var(--text)">${m.indication}</span></div>
+    </div>`).join('')}</div>`;
+
+  // Right panel alerts
+  const rpAlerts = document.getElementById('rp-alerts');
+  if (alertData.critical_alerts?.length) {
+    rpAlerts.innerHTML = alertData.critical_alerts.map(a=>`<div class="alert-row"><span class="alert-icon">🔴</span><span>${a}</span></div>`).join('');
+  } else {
+    rpAlerts.innerHTML = '<div style="color:var(--dim);font-size:12px">No critical alerts for this patient</div>';
+  }
+}
+
+// ── Views & Tabs ──────────────────────────────────────────────────────────────
+function showView(v) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  event.target.classList.add('active');
+  if (v==='audit') showTab('audit');
+}
+
+function showTab(tab) {
+  activeTab = tab;
+  const tabs = ['overview','labs','meds','notes','chat','audit'];
+  tabs.forEach(t=>{ document.getElementById(`tab-${t}`).style.display = t===tab?'':'none'; });
+  document.querySelectorAll('.tab').forEach((t,i)=>{ t.classList.toggle('active',['overview','labs','meds','notes','chat'][i]===tab); });
+  if(tab==='audit') loadAudit();
+}
+
+// ── AI Chat ───────────────────────────────────────────────────────────────────
+function setQ(el) { document.getElementById('chat-input').value = el.textContent; }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if(!q) return;
+  input.value='';
+
+  addChatMessage(q, 'user');
+  const loadingId = addChatMessage('<span class="spinner"></span> Analyzing with AI...', 'ai', true);
+
+  try {
+    const res = await fetch(`${API}/query`, {
+      method:'POST', headers: authHeaders(),
+      body: JSON.stringify({question:q, patient_id:currentPatient, include_rag:true})
+    });
+    const data = await res.json();
+    updateChatMessage(loadingId, data.answer, data.critical_alerts);
+  } catch(e) {
+    // Demo fallback
+    const demo = getDemoResponse(q, currentPatient);
+    updateChatMessage(loadingId, demo, []);
+  }
+}
+
+let msgId = 0;
+function addChatMessage(content, role, isLoading=false) {
+  const id = `msg-${++msgId}`;
+  const el = document.createElement('div');
+  el.className = `msg-${role}`;
+  el.id = id;
+  el.innerHTML = `<div class="msg-bubble md-content">${content}</div><div class="msg-meta">${role==='user'?currentUser?.full_name||'Clinician':'Healthcare AI v1.0'} · ${new Date().toLocaleTimeString()}</div>`;
+  document.getElementById('chat-messages').appendChild(el);
+  el.scrollIntoView({behavior:'smooth'});
+  return id;
+}
+
+function updateChatMessage(id, content, alerts) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  let html = renderMarkdown(content);
+  if(alerts?.length) {
+    html = `<div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.4);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px"><strong style="color:var(--red)">⚠️ Critical Alerts:</strong><br>${alerts.map(a=>`• ${a}`).join('<br>')}</div>` + html;
+  }
+  el.querySelector('.msg-bubble').innerHTML = html;
+}
+
+function renderMarkdown(text) {
+  return text
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/⚠️ CRITICAL[^\n]*/g,m=>`<span class="crit-text">${m}</span>`)
+    .replace(/`(.+?)`/g,'<code>$1</code>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`)
+    .replace(/\n\n/g,'</p><p>');
+}
+
+function getDemoResponse(q, patientId) {
+  const pt = DEMO_DATA[patientId];
+  if(!pt) return "Please select a patient first to get context-aware clinical responses.";
+  const name = `${pt.fhir.name[0].given[0]} ${pt.fhir.name[0].family}`;
+  const obs = pt.recent_observations||[];
+  const hba1c = obs.find(o=>o.display.includes('HbA1c'));
+  const cr = obs.find(o=>o.display.includes('Creatinine'));
+  const k = obs.find(o=>o.display.includes('Potassium'));
+
+  return `## Clinical Analysis — ${name}
+
+**Based on the EHR data and current clinical guidelines:**
+
+${hba1c?`### 🩺 Glycemic Control\n**HbA1c: ${hba1c.value}%** (${hba1c.interpretation})\n\nPer **ADA 2024 Standards of Care**, the glycemic target for most adults with T2DM is **HbA1c <7.0%**. This patient's HbA1c of ${hba1c.value}% is above target.\n\n**Recommended Actions:**\n- Consider adding an SGLT2 inhibitor (e.g., empagliflozin) — provides cardiorenal protection\n- Refer to diabetes educator for lifestyle counseling\n- Recheck HbA1c in 3 months after medication adjustment\n`:''}
+
+${cr?`### 🫘 Renal Function\n**Creatinine: ${cr.value} mg/dL** (${cr.interpretation})${k?` | **K+: ${k.value} mEq/L** (${k.interpretation})`:''}
+
+Per **KDIGO 2022 CKD Guidelines**, eGFR should be calculated and staged appropriately. ${cr.value>3.0?'**⚠️ This patient may be approaching ESRD — nephrology referral indicated.**':''}
+
+${k&&k.value>5.5?'**⚠️ HYPERKALEMIA: K+ >5.5 mEq/L requires medication review and possibly potassium binder therapy (patiromer or sodium zirconium cyclosilicate).**':''}`:''}
+
+### 💊 Medication Safety Review
+Current medications reviewed against labs. Please check the Medications tab for full drug list.
+
+---
+*This response is AI-generated and grounded in evidence-based guidelines. Clinical judgment and physician attestation required before acting on any recommendations.*`;
+}
+
+// ── Note Generation ───────────────────────────────────────────────────────────
+async function generateNote() {
+  if(!currentPatient){alert('Select a patient first');return;}
+  const btn = document.getElementById('gen-note-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+  try {
+    const res = await fetch(`${API}/patients/${currentPatient}/note`, {
+      method:'POST', headers: authHeaders(), body: JSON.stringify({note_type:'progress'})
+    });
+    const data = await res.json();
+    document.getElementById('ai-note-area').style.display = '';
+    document.getElementById('ai-note-content').textContent = data.draft;
+  } catch(e) {
+    const pt = DEMO_DATA[currentPatient];
+    if(pt) {
+      const name = `${pt.fhir.name[0].given[0]} ${pt.fhir.name[0].family}`;
+      document.getElementById('ai-note-area').style.display = '';
+      document.getElementById('ai-note-content').textContent = `[AI-DRAFT — REQUIRES PHYSICIAN REVIEW AND ATTESTATION]
+
+PROGRESS NOTE
+Date: ${new Date().toLocaleDateString()}
+Patient: ${name}
+
+SUBJECTIVE:
+Patient presents for follow-up. Reports ongoing management of active conditions including ${pt.conditions.map(c=>c.display).join(', ')}.
+
+OBJECTIVE:
+${pt.recent_observations.map(o=>`${o.display}: ${o.value} ${o.unit} (${o.interpretation})`).join('\n')}
+
+ASSESSMENT:
+${pt.conditions.map((c,i)=>`${i+1}. ${c.display} (${c.code}) — ${c.status}`).join('\n')}
+
+PLAN:
+${pt.medications.map(m=>`• Continue ${m.name} ${m.dosage} ${m.frequency}`).join('\n')}
+• Follow up per clinical judgment.
+• Monitor labs per guideline recommendations.
+
+[AI-generated draft — physician must review, edit, and attest before finalizing]`;
+    }
+  }
+  btn.disabled = false;
+  btn.innerHTML = '✨ Generate AI Draft Note';
+}
+
+// ── Audit ─────────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  try {
+    const res = await fetch(`${API}/audit`, {headers: authHeaders()});
+    const data = await res.json();
+    const el = document.getElementById('audit-content');
+    el.innerHTML = (data.entries||[]).slice(-20).reverse().map(e=>`
+      <div style="padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--green)">${e.timestamp}</span> |
+        <span style="color:var(--blue)">${e.user_id}</span> |
+        <span style="color:var(--orange)">${e.action}</span> |
+        ${e.resource_type}:${e.resource_id} |
+        <span style="color:${e.outcome==='success'?'var(--green)':'var(--red)'}">${e.outcome}</span>
+      </div>`).join('') || '<div style="color:var(--dim)">No audit entries yet.</div>';
+  } catch(e) {
+    document.getElementById('audit-content').innerHTML = `<div style="color:var(--dim)">
+      ${new Date().toISOString()} | dr.roberts | login | auth:system | success<br>
+      ${new Date().toISOString()} | dr.roberts | list_patients | patient:all | success<br>
+      ${new Date().toISOString()} | dr.roberts | view_patient | patient:PT003 | success<br>
+      ${new Date().toISOString()} | dr.roberts | clinical_query | patient:PT003 | success<br>
+      [Audit log demo mode — connect backend for live HIPAA audit trail]
+    </div>`;
+  }
+}
+
+// Init
+document.getElementById('login-overlay').style.display = 'flex';
+showTab('overview');
+</script>
+</body>
+</html>
