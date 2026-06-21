@@ -199,5 +199,5 @@ See `outputs/screenshots/`:
 
 ---
 
-**Built by Srinivas Gampasani | AI & ML Engineer | St. Louis, MO**  
-[LinkedIn](https://www.linkedin.com/in/srinivas-gampasani-85338b235/) · [GitHub](https://github.com/srinivas-gampasani)
+**Built by Srinivas Gampasani | Data Scientist, Gen AI & ML Engineer | USA**  
+[LinkedIn](https://www.linkedin.com/in/srinivasgampasani/) · [GitHub](https://github.com/srinivas-gampasani)
